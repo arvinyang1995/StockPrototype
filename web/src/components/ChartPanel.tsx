@@ -28,6 +28,8 @@ registerLocale('zh-TW', {
 })
 
 const CANDLE_PANE = 'candle_pane'
+const MENU_WIDTH = 220
+const MENU_HEIGHT = 170
 
 const DRAW_TOOLS = [
   { name: 'horizontalStraightLine', label: '水平線', icon: '─' },
@@ -104,6 +106,8 @@ export function ChartPanel() {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<Chart | null>(null)
   const draggingRef = useRef<string | null>(null)
+  const longPressRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> } | null>(null)
+  const menuOpenedAtRef = useRef(0)
   const [chartReady, setChartReady] = useState(false)
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [magnet, setMagnet] = useState(true)
@@ -260,15 +264,43 @@ export function ChartPanel() {
     return value === undefined ? null : roundToTick(value, INSTRUMENTS[symbol].tickSize)
   }
 
+  /** 在指定位置開啟下單選單；回傳是否成功開啟 */
+  const openMenuAt = (clientX: number, clientY: number) => {
+    const price = priceAt(clientX, clientY)
+    const el = containerRef.current
+    if (price === null || !el) return false
+    const rect = el.getBoundingClientRect()
+    // 避免選單超出圖表右側／下方（手機螢幕窄）
+    const x = Math.max(4, Math.min(clientX - rect.left, rect.width - MENU_WIDTH - 4))
+    const y = Math.max(4, Math.min(clientY - rect.top, rect.height - MENU_HEIGHT - 4))
+    menuOpenedAtRef.current = Date.now()
+    setMenu({ x, y, price })
+    return true
+  }
+
   const onContextMenu = (e: React.MouseEvent) => {
-    const price = priceAt(e.clientX, e.clientY)
-    if (price === null) return
-    e.preventDefault()
-    const rect = containerRef.current!.getBoundingClientRect()
-    setMenu({ x: e.clientX - rect.left, y: e.clientY - rect.top, price })
+    if (openMenuAt(e.clientX, e.clientY)) e.preventDefault()
+  }
+
+  // 觸控裝置沒有右鍵：長按 500ms 開啟下單選單，手指移動則取消
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return
+    const { clientX, clientY } = e.touches[0]
+    longPressRef.current = { x: clientX, y: clientY, timer: setTimeout(() => openMenuAt(clientX, clientY), 500) }
+  }
+  const cancelLongPress = () => {
+    if (longPressRef.current) clearTimeout(longPressRef.current.timer)
+    longPressRef.current = null
+  }
+  const onTouchMove = (e: React.TouchEvent) => {
+    const start = longPressRef.current
+    const t = e.touches[0]
+    if (start && Math.hypot(t.clientX - start.x, t.clientY - start.y) > 10) cancelLongPress()
   }
 
   const onClick = (e: React.MouseEvent) => {
+    // 長按放開後瀏覽器會補發 click，不要把剛開的選單關掉
+    if (Date.now() - menuOpenedAtRef.current < 400) return
     setMenu(null)
     // Alt + 點擊：把該價位帶入下單面板
     if (!e.altKey) return
@@ -356,7 +388,15 @@ export function ChartPanel() {
             🗑
           </button>
         </div>
-        <div className="chart-canvas-wrap" onContextMenu={onContextMenu} onClick={onClick}>
+        <div
+          className="chart-canvas-wrap"
+          onContextMenu={onContextMenu}
+          onClick={onClick}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={cancelLongPress}
+          onTouchCancel={cancelLongPress}
+        >
           <div className="chart-canvas" ref={containerRef} />
           {menu && renderMenu(menu)}
         </div>

@@ -275,6 +275,9 @@ input {
   flex: 1;
   min-width: 0;
   position: relative;
+  /* 長按下單時不要跳出 iOS 的複製／選取選單 */
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 .chart-canvas {
   position: absolute;
@@ -666,10 +669,42 @@ input[type='number'] {
     min-height: 100vh;
     overflow: visible;
   }
+
+  /* 頂部列改為多行：品牌＋模式＋現價 / 商品切換 / 帳戶摘要 */
+  .top-bar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 16px;
+    gap: 8px 12px;
+    overflow: visible;
+  }
+  .ticker {
+    margin-left: auto;
+  }
+  .symbols {
+    order: 3;
+    width: 100%;
+  }
+  .symbols button {
+    flex: 1;
+    justify-content: center;
+  }
+  .account {
+    order: 4;
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* 仿幣圈 App：下單面板與五檔左右並排 */
   .workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 60vh auto auto 300px;
-    grid-template-areas: 'chart' 'order' 'book' 'bottom';
+    grid-template-columns: minmax(0, 1fr) 132px;
+    grid-template-rows: 58vh auto 320px;
+    grid-template-areas:
+      'chart chart'
+      'order book'
+      'bottom bottom';
   }
   .chart-toolbar .hint {
     display: none;
@@ -677,12 +712,29 @@ input[type='number'] {
   .chart-toolbar .seg {
     overflow-x: auto;
   }
-  .top-bar {
-    padding: 0 16px;
+  .order-panel {
+    padding: 12px 8px 12px 16px;
   }
-  .order-panel,
   .order-book {
-    padding-left: 16px;
-    padding-right: 16px;
+    padding-right: 8px;
+  }
+  .order-book header,
+  .book-head,
+  .book-row,
+  .book-last {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  .order-book header .dim {
+    display: none;
+  }
+  .book-last {
+    font-size: 15px;
+  }
+  .price-shortcuts button {
+    font-size: 10px;
+  }
+  .modal-actions {
+    grid-template-columns: 1fr 1fr;
   }
 }
